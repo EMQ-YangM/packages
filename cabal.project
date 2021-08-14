@@ -1,0 +1,28 @@
+index-state: 2021-02-15T00:00:00Z
+
+packages: ./typed-protocols
+          ./typed-protocols-examples
+          ./monoidal-synchronisation
+          ./io-sim
+          ./io-classes
+          ./contra-tracer
+
+constraints:
+    ip < 1.5
+  , hedgehog >= 1.0
+  , bimap >= 0.4.0
+  , ListLike >= 4.7.3
+  , witherable >= 0.4
+
+package io-classes
+  flags: +asserts
+
+
+package typed-protocols
+
+package typed-protocols-examples
+  tests: True
+
+package contra-tracer
+  tests: False
+
