@@ -23,11 +23,6 @@ import qualified Control.Monad.STM as STM
 import           Data.Kind (Type)
 import           Data.Time.Clock (DiffTime, diffTimeToPicoseconds)
 
-#if defined(__GLASGOW_HASKELL__) && !defined(mingw32_HOST_OS) && !defined(__GHCJS__)
-import qualified GHC.Event as GHC (TimeoutKey, getSystemTimerManager,
-                     registerTimeout, unregisterTimeout, updateTimeout)
-#endif
-
 import           Control.Monad.Class.MonadFork
 import           Control.Monad.Class.MonadSTM
 
@@ -134,42 +129,6 @@ instance MonadDelay IO where
       maxDelay :: DiffTime
       maxDelay = microsecondsAsIntToDiffTime maxBound
 
-#if defined(__GLASGOW_HASKELL__) && !defined(mingw32_HOST_OS) && !defined(__GHCJS__)
-instance MonadTimer IO where
-  data Timeout IO = TimeoutIO !(STM.TVar TimeoutState) !GHC.TimeoutKey
-
-  readTimeout (TimeoutIO var _key) = STM.readTVar var
-
-  newTimeout = \d -> do
-      var <- STM.newTVarIO TimeoutPending
-      mgr <- GHC.getSystemTimerManager
-      key <- GHC.registerTimeout mgr (diffTimeToMicrosecondsAsInt d)
-                                     (STM.atomically (timeoutAction var))
-      return (TimeoutIO var key)
-    where
-      timeoutAction var = do
-        x <- STM.readTVar var
-        case x of
-          TimeoutPending   -> STM.writeTVar var TimeoutFired
-          TimeoutFired     -> error "MonadTimer(IO): invariant violation"
-          TimeoutCancelled -> return ()
-
-  -- In GHC's TimerManager this has no effect if the timer already fired.
-  -- It is safe to race against the timer firing.
-  updateTimeout (TimeoutIO _var key) d = do
-      mgr <- GHC.getSystemTimerManager
-      GHC.updateTimeout mgr key (diffTimeToMicrosecondsAsInt d)
-
-  cancelTimeout (TimeoutIO var key) = do
-      STM.atomically $ do
-        x <- STM.readTVar var
-        case x of
-          TimeoutPending   -> STM.writeTVar var TimeoutCancelled
-          TimeoutFired     -> return ()
-          TimeoutCancelled -> return ()
-      mgr <- GHC.getSystemTimerManager
-      GHC.unregisterTimeout mgr key
-#else
 instance MonadTimer IO where
   data Timeout IO = TimeoutIO !(STM.TVar (STM.TVar Bool)) !(STM.TVar Bool)
 
@@ -195,7 +154,6 @@ instance MonadTimer IO where
     STM.atomically $ do
       fired <- STM.readTVar =<< STM.readTVar timeoutvarvar
       when (not fired) $ STM.writeTVar cancelvar True
-#endif
 
   -- | For delays less (or equal) than @maxBound :: Int@ this is exactly the same as
   -- 'STM.registerDaley'; for larger delays it will start a monitoring thread
