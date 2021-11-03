@@ -27,7 +27,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Data.List.Trace
                      , Control.Monad.IOSim
-  other-modules:       Control.Monad.IOSim.Internal
+                     , Control.Monad.IOSim.Internal
+  -- other-modules:     , Control.Monad.IOSim.Internal
   default-language:    Haskell2010
   other-extensions:    BangPatterns,
                        CPP,
